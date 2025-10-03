@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* The One True Theme: Original Light */
+    --background: 222 47% 95%; /* #F5F7FA */
+    --foreground: 240 10% 3.9%; /* #111111 */
+
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --primary: 215 79% 20%; /* #0A2540 */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+
+    --secondary: 242 100% 70%; /* #6C63FF */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 13% 91%; /* #E5E7EB */
+    --muted-foreground: 217 19% 47%; /* #6B7280 */
+
+    --accent: 158 100% 45%; /* #00E5A0 */
+    --accent-foreground: 240 10% 3.9%;
+
+    --destructive: 0 72% 51%; /* #DC2626 */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 79% 20% / 0.1; /* rgba(10, 37, 64, 0.1) */
+    --input: 0 0% 100%;
+    --ring: 215 79% 20%;
+
+    --radius: 0.75rem;
+  }
+
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
