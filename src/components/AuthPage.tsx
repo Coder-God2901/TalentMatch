@@ -48,10 +48,12 @@ export function AuthPage({ mode: initialMode }: AuthPageProps) {
 
       if (error) {
         alert(error.message);
+        console.log('Signup error details:', error);
       } else if (data.user) {
         // This is the key change!
         // On successful signup, we show a confirmation alert...
         alert('Signup successful! Please check your email for a verification link.');
+        console.log('Signup successful, user details:', data.user);
         // ...and then navigate the user to the login page.
         navigate('/login');
       }
@@ -63,6 +65,9 @@ export function AuthPage({ mode: initialMode }: AuthPageProps) {
       });
       if (error) {
         alert(error.message);
+        console.log('Signin error details:', error);
+      } else {
+        
       }
       // On successful login, the AuthRedirector in App.tsx will handle navigation.
     }
@@ -75,6 +80,7 @@ export function AuthPage({ mode: initialMode }: AuthPageProps) {
     const { error } = await supabase.auth.signInWithOAuth({ provider });
     if (error) {
       alert(error.message);
+      console.log('OAuth sign-in error details:', error);
       setIsLoading(false);
     }
     // Supabase handles the redirect to the OAuth provider

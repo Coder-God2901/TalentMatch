@@ -1,4 +1,10 @@
-import { Routes, Route, BrowserRouter, useNavigate } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  BrowserRouter,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
 import { LandingPage } from "./components/LandingPage";
 import { AuthPage } from "./components/AuthPage";
 import { RoleSelection } from "./components/RoleSelection";
@@ -7,52 +13,106 @@ import { RecruiterDashboard } from "./components/RecruiterDashboard";
 import { AuthProvider, useAuth } from "./lib/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ThemeProvider } from "./components/theme-provider";
-import React, { useEffect } from "react";
+import React from "react";
 import { supabase } from "./lib/supabaseClient";
-import { SignupWizard } from "./components/SignupWizard";
+import { SignIn } from "./components/SignIn";
+import { SignUp } from "./components/SignUp";
 
-// Improved AuthRedirector: only runs if user is authenticated, adds loading state, avoids unnecessary render
+/**
+ * AuthRedirector
+ * - placed globally (inside AuthProvider) so it runs after any login
+ * - waits for auth loading to finish and for a stable user
+ * - small debounce to allow session/profile propagation
+ * - uses maybeSingle() so 0-row results don't throw
+ * - avoids redirect loops by checking current location and la stCheckedUserRef
+ */
 const AuthRedirector = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [checking, setChecking] = React.useState(false);
+  const location = useLocation();
+
+  const checkingRef = React.useRef(false);
+  const lastCheckedUserRef = React.useRef<string | null>(null);
+  const mountedRef = React.useRef(true);
 
   React.useEffect(() => {
-    if (!loading && user) {
-      setChecking(true);
-      const checkUserType = async () => {
-        // Check candidates table
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      // user not signed in — do nothing
+      lastCheckedUserRef.current = null;
+      return;
+    }
+
+    //  avoid duplicate checks for same user
+    if (checkingRef.current || lastCheckedUserRef.current === user.id) return;
+    checkingRef.current = true;
+    lastCheckedUserRef.current = user.id;
+
+    (async () => {
+      try {
+        //  small delay to let  session/profile propagate (helps races)
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        // If user is already on a dashboard for some reason, skip checks
+        const pathname = location.pathname;
+        if (
+          pathname.startsWith("/job-seeker-dashboard") ||
+          pathname.startsWith("/recruiter-dashboard")
+        ) {
+          return;
+        }
+
+        // check candidates
         const { data: candidate, error: candidateError } = await supabase
           .from("candidates")
           .select("id")
           .eq("id", user.id)
-          .single();
+          .maybeSingle();
+
+        if (candidateError) {
+          console.warn("candidate check error", candidateError);
+        }
         if (candidate) {
-          navigate("/job-seeker-dashboard", { replace: true });
-          setChecking(false);
+          if (mountedRef.current)
+            navigate("/job-seeker-dashboard", { replace: true });
           return;
         }
-        // Check recruiters table
+
+        //  check recruiters
         const { data: recruiter, error: recruiterError } = await supabase
           .from("recruiters")
           .select("id")
           .eq("id", user.id)
-          .single();
+          .maybeSingle();
+
+        if (recruiterError) {
+          console.warn("recruiter check error", recruiterError);
+        }
         if (recruiter) {
-          navigate("/recruiter-dashboard", { replace: true });
-          setChecking(false);
+          if (mountedRef.current)
+            navigate("/recruiter-dashboard", { replace: true });
           return;
         }
-        // If not found, redirect to signup
-        navigate("/signup", { replace: true });
-        setChecking(false);
-      };
-      checkUserType();
-    }
-  }, [user, loading, navigate]);
 
-  // Show nothing if not authenticated, or loading spinner if checking profile
-  if (loading || checking || !user) return null;
+        //  no profile found -> send to signup to complete profile (avoid loop if already on signup)
+        if (mountedRef.current && location.pathname !== "/signup") {
+          navigate("/signup", { replace: true });
+        }
+      } catch (err) {
+        console.error("AuthRedirector check error", err);
+      } finally {
+        checkingRef.current = false;
+      }
+    })();
+  }, [user, loading, navigate, location]);
+
   return null;
 };
 
@@ -66,46 +126,39 @@ export default function App() {
     >
       <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
+        <AuthRedirector />
 
-            <Route
-              path="/login"
-              element={
-                <>
-                  <AuthPage mode="signin" />
-                  {/* Only show AuthRedirector if user is authenticated */}
-                  <AuthRedirector />
-                </>
-              }
-            />
-            <Route path="/signup" element={<SignupWizard />} />
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
 
-            <Route
-              path="/role-selection"
-              element={
-                <ProtectedRoute>
-                  <RoleSelection />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/job-seeker-dashboard"
-              element={
-                <ProtectedRoute>
-                  <JobSeekerDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/recruiter-dashboard"
-              element={
-                <ProtectedRoute>
-                  <RecruiterDashboard />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
+          <Route path="/login" element={<SignIn />} />
+          <Route path="/signup" element={<SignUp />} />
+
+          <Route
+            path="/role-selection"
+            element={
+              <ProtectedRoute>
+                <RoleSelection />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/job-seeker-dashboard"
+            element={
+              <ProtectedRoute>
+                <JobSeekerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/recruiter-dashboard"
+            element={
+              <ProtectedRoute>
+                <RecruiterDashboard />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>
