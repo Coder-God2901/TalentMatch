@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TalentMatch – Upload Resume</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    <h2>Upload Resume to Calculate Fitment Score</h2>
+    <form action="/upload" method="POST" enctype="multipart/form-data">
+      <input type="file" name="resume" accept=".pdf,.doc,.docx" required>
+      <button type="submit">Upload</button>
+    </form>
+  </div>
+</body>
+</html>

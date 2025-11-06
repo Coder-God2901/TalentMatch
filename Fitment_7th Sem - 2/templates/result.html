@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fitment Score Result</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    <h2>Fitment Score: {{ score }}%</h2>
+    <h3>Score Breakdown</h3>
+    <ul>
+      {% for key, value in breakdown.items() %}
+      <li><strong>{{ key }}:</strong> {{ value }}%</li>
+      {% endfor %}
+    </ul>
+    <a href="/">← Back to Upload</a>
+  </div>
+</body>
+</html>

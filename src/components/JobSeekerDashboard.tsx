@@ -326,12 +326,13 @@ export function JobSeekerDashboard() {
                 </Button>
               </motion.div>
               <div className="flex items-center space-x-3 pl-3 border-l border-slate-200">
-                <Avatar className="w-9 h-9 ring-2 ring-indigo-500/20">
-                  <AvatarFallback className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
-                    {user?.user_metadata?.full_name?.charAt(0)?.toUpperCase() ||
-                      "U"}
-                  </AvatarFallback>
-                </Avatar>
+                <button onClick={() => navigate('/job-seeker-profile')} className="rounded-full focus:outline-none">
+                  <Avatar className="w-9 h-9 ring-2 ring-indigo-500/20">
+                    <AvatarFallback className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+                      {user?.user_metadata?.full_name?.charAt(0)?.toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
                 <div className="hidden sm:block">
                   <p className="text-sm font-medium text-slate-800">
                     {user?.user_metadata?.full_name}

@@ -263,11 +263,13 @@ export function RecruiterDashboard() {
                 </Button>
               </motion.div>
               <div className="flex items-center space-x-3">
-                <Avatar className="w-9 h-9 ring-2 ring-purple-200">
-                  <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
-                    {user?.user_metadata?.full_name?.charAt(0)?.toUpperCase() || 'R'}
-                  </AvatarFallback>
-                </Avatar>
+                <button onClick={() => navigate('/recruiter-profile')} className="rounded-full focus:outline-none">
+                  <Avatar className="w-9 h-9 ring-2 ring-purple-200">
+                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                      {user?.user_metadata?.full_name?.charAt(0)?.toUpperCase() || 'R'}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
                 <div className="hidden sm:block">
                   <p className="text-sm">{user?.user_metadata?.full_name}</p>
                   <p className="text-xs text-muted-foreground">Elite Recruiter</p>

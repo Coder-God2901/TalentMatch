@@ -17,6 +17,8 @@ import React from "react";
 import { supabase } from "./lib/supabaseClient";
 import { SignIn } from "./components/SignIn";
 import { SignUp } from "./components/SignUp";
+import { RecruiterProfile } from "./components/RecruiterProfile";
+import { JobSeekerProfile } from "./components/JobSeekerProfile";
 
 /**
  * AuthRedirector
@@ -155,6 +157,24 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <RecruiterDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/job-seeker-profile"
+            element={
+              <ProtectedRoute>
+                <JobSeekerProfile />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/recruiter-profile"
+            element={
+              <ProtectedRoute>
+                <RecruiterProfile />
               </ProtectedRoute>
             }
           />
