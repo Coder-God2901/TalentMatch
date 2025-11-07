@@ -778,7 +778,7 @@ export function RecruiterDashboard() {
                             </div>
                             <div className="flex flex-col space-y-2 ml-6">
                               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                <Button size="sm" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white">
+                                <Button size="sm" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white" onClick={() => navigate(`/job/${job.id}`)}>
                                   <Eye className="w-4 h-4 mr-1" />
                                   View Details
                                 </Button>

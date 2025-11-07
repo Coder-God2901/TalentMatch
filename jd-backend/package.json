@@ -1,0 +1,19 @@
+{
+  "name": "jd-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "generate_jd.js",
+  "type": "module",
+  "scripts": {
+    "start:jd": "node ./generate_jd_server.js",
+    "start:fitment": "node ./run_fitment_rank.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
+  }
+}

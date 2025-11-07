@@ -19,6 +19,8 @@ import { SignIn } from "./components/SignIn";
 import { SignUp } from "./components/SignUp";
 import { RecruiterProfile } from "./components/RecruiterProfile";
 import { JobSeekerProfile } from "./components/JobSeekerProfile";
+import JobDetails from "./pages/recruiter/JobDetails";
+import RankedCandidates from "./pages/recruiter/RankedCandidates";
 
 /**
  * AuthRedirector
@@ -175,6 +177,24 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <RecruiterProfile />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/job/:id"
+            element={
+              <ProtectedRoute>
+                <JobDetails />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/recruiter/jobs/:id/ranked"
+            element={
+              <ProtectedRoute>
+                <RankedCandidates />
               </ProtectedRoute>
             }
           />

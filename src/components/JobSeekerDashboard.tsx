@@ -235,6 +235,72 @@ export function JobSeekerDashboard() {
     },
   ];
 
+  async function handleApply(id: any) {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      // Prepare payload expected by Flask
+      const job = jobs.find((j: any) => j.id === id) ?? { id };
+      const payload = {
+        job_id: id,
+        candidate_id: user.id,
+        job: {
+          title: job.title,
+          skills_required: Array.isArray(job.skills) ? job.skills : (job.skills || []),
+          raw_jd: job.description_raw ?? '',
+          generated_jd: job.description ?? ''
+        },
+        candidate: {
+          // include profile fields so server can score without extra fetch
+          resume_url: user?.user_metadata?.resume_url ?? null,
+          github_url: user?.user_metadata?.github ?? null,
+          linkedin_url: user?.user_metadata?.linkedin ?? null,
+          profile: {
+            skills: user?.user_metadata?.skills_text ?? user?.user_metadata?.skills ?? [],
+            experience_years: user?.user_metadata?.experience_years ?? 0
+          }
+        }
+      };
+
+      const FLASK_BASE = (import.meta as any)?.env?.VITE_FLASK_BASE || "http://127.0.0.1:5000";
+      const res = await fetch(`${FLASK_BASE.replace(/\/$/, "")}/score`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        console.error("Scoring failed", res.status, txt);
+        alert("Failed to compute fitment. Please try again.");
+        return;
+      }
+
+      const json = await res.json();
+      const fitment = json?.fitment_score ?? null;
+      const subs = json?.sub_scores ?? null;
+
+      // Update UI optimistically: increment applicants and set fitment for this job
+      setJobs((prev) =>
+        prev.map((jobItem) =>
+          jobItem.id === id
+            ? { ...jobItem, applicants: (jobItem.applicants || 0) + 1, latest_fitment: fitment }
+            : jobItem
+        )
+      );
+
+      // show success and score
+      // alert(`Applied — Fitment score: ${Math.round((fitment || 0) * 10) / 10}`);
+      console.log(`Applied — Fitment score: ${Math.round((fitment || 0) * 10) / 10}`);
+      // optional: you may also refresh applications or job details from Supabase
+    } catch (err) {
+      console.error("Unexpected error applying:", err);
+      alert("Unexpected error while applying.");
+    }
+  }
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 relative">
       {/* Confetti Animation */}
@@ -648,8 +714,9 @@ export function JobSeekerDashboard() {
                                     <Button
                                       size="lg"
                                       className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 border-0 shadow-lg"
+                                      onClick={() => handleApply(job.id)}
                                     >
-                                      🚀 Apply Now
+                                      <span>🚀 Apply Now</span>
                                     </Button>
                                   </motion.div>
                                   <div className="flex space-x-2">
