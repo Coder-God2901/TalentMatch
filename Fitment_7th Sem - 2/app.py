@@ -153,8 +153,8 @@ def score_and_upsert_application():
         final_score, breakdown = calculate_fitment_score(candidate_data_for_scoring, attrition_prob)
 
         # Upsert into Supabase via REST (service role). Uses environment secrets.
-        SUPABASE_URL = os.getenv('SUPABASE_URL')
-        SERVICE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+        SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").rstrip("/")
+        SERVICE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
         if not SUPABASE_URL or not SERVICE_KEY:
             app.logger.warning("Supabase env not configured; returning score only")

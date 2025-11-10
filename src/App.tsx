@@ -15,12 +15,55 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ThemeProvider } from "./components/theme-provider";
 import React from "react";
 import { supabase } from "./lib/supabaseClient";
-import { SignIn } from "./components/SignIn";
+import { SignIn1 } from "./components/SignIn1";
 import { SignUp } from "./components/SignUp";
 import { RecruiterProfile } from "./components/RecruiterProfile";
 import { JobSeekerProfile } from "./components/JobSeekerProfile";
 import JobDetails from "./pages/recruiter/JobDetails";
 import RankedCandidates from "./pages/recruiter/RankedCandidates";
+import { RecruiterDashboard1 } from "./components/RecruiterDashboard1";
+import { CandidatesPage } from "./components/CandidatesPage";
+import { RankingCandidates1 } from "./components/RankingCandidates1";
+
+const activeJobs = [  
+    {
+      id: 1,
+      title: "Senior Frontend Developer",
+      department: "Engineering",
+      location: "San Francisco, CA",
+      salary: "$120k - $150k",
+      candidates: 45,
+      newApplications: 8,
+      posted: "2 weeks ago",
+      status: "Active",
+      urgency: "High",
+    },
+    {
+      id: 2,
+      title: "Product Manager",
+      department: "Product",
+      location: "Remote",
+      salary: "$110k - $140k",
+      candidates: 32,
+      newApplications: 5,
+      posted: "1 week ago",
+      status: "Active",
+      urgency: "Medium",
+    },
+    {
+      id: 3,
+      title: "DevOps Engineer",
+      department: "Engineering",
+      location: "Austin, TX",
+      salary: "$100k - $130k",
+      candidates: 28,
+      newApplications: 12,
+      posted: "3 days ago",
+      status: "Active",
+      urgency: "High",
+    },
+  ];
+
 
 /**
  * AuthRedirector
@@ -128,14 +171,15 @@ export default function App() {
         v7_relativeSplatPath: true,
       }}
     >
-      <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
+      <ThemeProvider defaultTheme="light" storageKey="talentmatch-theme">
+        <div className="min-h-screen bg-background">
         <AuthProvider>
         <AuthRedirector />
 
         <Routes>
           <Route path="/" element={<LandingPage />} />
 
-          <Route path="/login" element={<SignIn />} />
+          <Route path="/login" element={<SignIn1 />} />
           <Route path="/signup" element={<SignUp />} />
 
           <Route
@@ -158,7 +202,7 @@ export default function App() {
             path="/recruiter-dashboard"
             element={
               <ProtectedRoute>
-                <RecruiterDashboard />
+                <RecruiterDashboard1 />
               </ProtectedRoute>
             }
           />
@@ -198,8 +242,25 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/recruiter/jobs/:id/ranked-candidates"
+            element={
+              <ProtectedRoute>
+                <RankingCandidates1 />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/candidates"
+            element={
+              <ProtectedRoute>
+                <CandidatesPage />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
         </AuthProvider>
+        </div>
       </ThemeProvider>
     </BrowserRouter>
   );

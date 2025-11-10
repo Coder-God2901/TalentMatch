@@ -232,7 +232,7 @@ export function RecruiterDashboard() {
                 <Sparkles className="w-6 h-6 text-white" />
               </motion.div>
               <div>
-                <h1 className="text-xl">TalentAI</h1>
+                <h1 className="text-xl">TalentMatch</h1>
                 <div className="flex items-center space-x-2">
                   <Badge variant="secondary" className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700">
                     <Crown className="w-3 h-3 mr-1" />
