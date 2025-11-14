@@ -838,7 +838,7 @@ export function RecruiterDashboard1() {
                           </div>
 
                           <div className="flex flex-col space-y-3 ml-6">
-                            <Button size="lg" onClick={() => navigate(`/recruiter/jobs/${job.id}/ranked`)}>
+                            <Button size="lg" onClick={() => navigate(`/recruiter/jobs/${job.id}/ranked-candidates`)}>
                               View Candidates
                             </Button>
 

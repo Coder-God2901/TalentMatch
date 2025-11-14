@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import {
   Card,
@@ -73,58 +73,58 @@ import { Textarea } from "./ui/textarea";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 
-interface Job {
-  id: number;
+type Job = {
+  id: string;
   title: string;
-  department: string;
-  location: string;
-  salary: string;
-  status: string;
-  urgency: string;
-}
+  department?: string;
+  location?: string;
+  salary?: string;
+  status?: string;
+  urgency?: string;
+};
 
-interface RankingCandidatesProps {
-  job: Job;
-}
+type RankingCandidatesProps = { job?: Job };
 
-interface Candidate {
-  id: number;
+type Candidate = {
+  id: string | number;
   name: string;
-  title: string;
-  location: string;
-  experience: string;
+  title?: string | "Software Engineer";
+  location?: string;
+  experience?: string;
   skills: string[];
   matchScore: number;
-  attritionRisk: "Low" | "Medium" | "High";
-  avatar: string;
+  attritionRisk?: "Low" | "Medium" | "High";
+  avatar?: string;
   status: "New" | "Reviewed" | "Interviewing" | "Offered" | "Rejected";
-  salary: string;
-  education: string;
-  lastActive: string;
+  salary?: string;
+  education?: string;
+  lastActive?: string;
   responseRate: number;
   interviewScore?: number;
-  yearsOfExperience: number;
+  yearsOfExperience?: number;
   cultureFit: number;
   technicalSkills: number;
   softSkills: number;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   linkedIn?: string;
   github?: string;
   portfolio?: string;
-  summary: string;
-  appliedDate: string;
-  availability: string;
-  expectedSalary: string;
-  noticePeriod: string;
+  summary?: string;
+  appliedDate?: string;
+  availability?: string;
+  expectedSalary?: string;
+  noticePeriod?: string;
   rank?: number;
   recruiterNotes?: string;
-}
+};
 
 export function RankingCandidates1() {
   const { id } = useParams(); // job id
   const navigate = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [recomputing, setRecomputing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -139,348 +139,178 @@ export function RankingCandidates1() {
   );
   const [rejectionReason, setRejectionReason] = useState("");
 
+  // Fetch job + applications + candidate profile info
   useEffect(() => {
-      if (!id) return;
-      (async () => {
-        setLoading(true);
-        try {
-          // Fetch applications joined with candidate info from Supabase
-          // select applications fields + inner candidates relation
-          const { data, error } = await supabase
-            .from('applications')
-            .select(`id, candidate_id, fitment_score, sub_scores, created_at, candidates(id, display_name, email)`)
-            .eq('job_id', id);
-          if (error) throw error;
-          const mapped = (data || []).map((r: any) => ({
-            candidate_id: r.candidate_id,
-            display_name: r.candidates?.display_name ?? 'Unknown',
-            email: r.candidates?.email ?? '—',
-            fitment_score: r.fitment_score,
-            sub_scores: r.sub_scores,
-            application_id: r.id,
-            applied_at: r.created_at
-          }));
-          // sort by fitment_score desc (undefined/ null considered 0)
-          mapped.sort((a: any, b: any) => (b.fitment_score || 0) - (a.fitment_score || 0));
-          setRows(mapped);
-        } catch (err) {
-          console.error('failed to load applications', err);
-        } finally {
-          setLoading(false);
-        }
-      })();
-    }, [id]);
-  
-    // Optional: call your backend to recompute rankings for this job.
-    // This requires a server endpoint (Flask or Node) that triggers scoring for all applications.
-    const onRecompute = async () => {
-      if (!id) return;
-      setRecomputing(true);
+    if (!id) return;
+    (async () => {
+      setLoading(true);
       try {
-        const FLASK_BASE = (import.meta as any)?.env?.VITE_FLASK_BASE || 'http://127.0.0.1:5000';
-        // Expect server route: POST /rank with { job_id }
-        const res = await fetch(`${FLASK_BASE.replace(/\/$/, '')}/rank`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ job_id: id })
-        });
-        if (!res.ok) throw new Error(`rank request failed ${res.status}`);
-        const json = await res.json();
-        // server returns array of rankings; map into UI
-        if (Array.isArray(json)) {
-          setRows(json);
+        // Fetch job details
+        const { data: jobData, error: jobErr } = await supabase
+          .from("jobs")
+          .select("id, title, department, location, salary, status, urgency")
+          .eq("id", id)
+          .single();
+        if (jobErr && jobErr.code !== "PGRST116") {
+          console.warn("job fetch error", jobErr);
         } else {
-          // fallback: refresh from Supabase
-          const { data } = await supabase
-            .from('applications')
-            .select(`id, candidate_id, fitment_score, sub_scores, created_at, candidates(id, display_name, email)`)
-            .eq('job_id', id);
-          const mapped = (data || []).map((r: any) => ({
-            candidate_id: r.candidate_id,
-            display_name: r.candidates?.display_name ?? 'Unknown',
-            email: r.candidates?.email ?? '—',
-            fitment_score: r.fitment_score,
-            sub_scores: r.sub_scores,
-            application_id: r.id,
-            applied_at: r.created_at
-          }));
-          mapped.sort((a: any, b: any) => (b.fitment_score || 0) - (a.fitment_score || 0));
-          setRows(mapped);
+          setJob(jobData || null);
         }
-      } catch (err) {
-        console.error('recompute failed', err);
-      } finally {
-        setRecomputing(false);
-      }
-    };
-  
-    const color = (v:number|undefined) => v===undefined? 'gray' : v>=80? 'green' : v>=60? 'amber' : 'red';
-  
-    if (loading) return <div className="p-4">Loading candidates…</div>;
 
-  // Mock candidates data for this specific job
-  const [candidates, setCandidates] = useState<Candidate[]>([
-    {
-      id: 1,
-      name: "Sarah Chen",
-      title: "Senior Frontend Developer",
-      location: "San Francisco, CA",
-      experience: "5+ years",
-      yearsOfExperience: 5,
-      skills: ["React", "TypeScript", "Node.js", "AWS", "GraphQL", "Jest"],
-      matchScore: 95,
-      attritionRisk: "Low",
-      avatar: "SC",
-      status: "Reviewed",
-      salary: "$140k",
-      education: "BS Computer Science, Stanford University",
-      lastActive: "2 hours ago",
-      responseRate: 96,
-      interviewScore: 92,
-      cultureFit: 88,
-      technicalSkills: 95,
-      softSkills: 90,
-      email: "sarah.chen@email.com",
-      phone: "+1 (555) 123-4567",
-      linkedIn: "linkedin.com/in/sarachen",
-      github: "github.com/sarachen",
-      portfolio: "sarachen.dev",
-      summary:
-        "Passionate frontend developer with 5+ years of experience building scalable web applications. Specialized in React ecosystem and modern JavaScript.",
-      appliedDate: "2 days ago",
-      availability: "Immediate",
-      expectedSalary: "$140k - $150k",
-      noticePeriod: "2 weeks",
-      rank: 1,
-      recruiterNotes:
-        "Excellent technical skills, great cultural fit. Strong candidate for senior role.",
-    },
-    {
-      id: 2,
-      name: "Marcus Rodriguez",
-      title: "Full Stack Engineer",
-      location: "Austin, TX",
-      experience: "7+ years",
-      yearsOfExperience: 7,
-      skills: ["React", "Python", "PostgreSQL", "Docker", "AWS", "Redis"],
-      matchScore: 92,
-      attritionRisk: "Low",
-      avatar: "MR",
-      status: "Interviewing",
-      salary: "$130k",
-      education: "MS Software Engineering, MIT",
-      lastActive: "1 day ago",
-      responseRate: 88,
-      interviewScore: 89,
-      cultureFit: 85,
-      technicalSkills: 92,
-      softSkills: 87,
-      email: "marcus.r@email.com",
-      phone: "+1 (555) 234-5678",
-      linkedIn: "linkedin.com/in/marcusrodriguez",
-      github: "github.com/mrodriguez",
-      summary:
-        "Full-stack engineer with expertise in Python and modern web technologies. Strong background in distributed systems.",
-      appliedDate: "3 days ago",
-      availability: "1 month",
-      expectedSalary: "$130k - $145k",
-      noticePeriod: "1 month",
-      rank: 2,
-      recruiterNotes:
-        "Interview scheduled for next week. Shows strong problem-solving skills.",
-    },
-    {
-      id: 3,
-      name: "Emily Watson",
-      title: "Frontend Developer",
-      location: "Remote",
-      experience: "6+ years",
-      yearsOfExperience: 6,
-      skills: ["React", "JavaScript", "CSS", "HTML", "Redux", "Webpack"],
-      matchScore: 88,
-      attritionRisk: "Medium",
-      avatar: "EW",
-      status: "New",
-      salary: "$120k",
-      education: "BS Computer Science, UC Berkeley",
-      lastActive: "5 hours ago",
-      responseRate: 92,
-      cultureFit: 90,
-      technicalSkills: 87,
-      softSkills: 95,
-      email: "emily.watson@email.com",
-      phone: "+1 (555) 345-6789",
-      linkedIn: "linkedin.com/in/emilywatson",
-      portfolio: "emilywatson.dev",
-      summary:
-        "Frontend specialist with strong design sense. Experienced in building responsive and accessible web applications.",
-      appliedDate: "1 day ago",
-      availability: "2 weeks",
-      expectedSalary: "$120k - $135k",
-      noticePeriod: "2 weeks",
-      rank: 3,
-    },
-    {
-      id: 4,
-      name: "David Kim",
-      title: "Software Engineer",
-      location: "San Francisco, CA",
-      experience: "4+ years",
-      yearsOfExperience: 4,
-      skills: ["React", "TypeScript", "Node.js", "MongoDB", "Express"],
-      matchScore: 85,
-      attritionRisk: "Low",
-      avatar: "DK",
-      status: "Reviewed",
-      salary: "$115k",
-      education: "BS Information Systems, UT Austin",
-      lastActive: "1 hour ago",
-      responseRate: 94,
-      interviewScore: 85,
-      cultureFit: 82,
-      technicalSkills: 88,
-      softSkills: 80,
-      email: "david.kim@email.com",
-      phone: "+1 (555) 456-7890",
-      github: "github.com/dkim",
-      summary:
-        "Growing engineer with solid fundamentals and eagerness to learn. Good team player.",
-      appliedDate: "4 days ago",
-      availability: "Immediate",
-      expectedSalary: "$115k - $125k",
-      noticePeriod: "2 weeks",
-      rank: 4,
-    },
-    {
-      id: 5,
-      name: "Lisa Anderson",
-      title: "Senior Frontend Developer",
-      location: "New York, NY",
-      experience: "6+ years",
-      yearsOfExperience: 6,
-      skills: ["React", "Vue", "Angular", "JavaScript", "CSS", "Testing"],
-      matchScore: 83,
-      attritionRisk: "High",
-      avatar: "LA",
-      status: "New",
-      salary: "$125k",
-      education: "BS Software Engineering, Georgia Tech",
-      lastActive: "4 hours ago",
-      responseRate: 78,
-      cultureFit: 75,
-      technicalSkills: 86,
-      softSkills: 82,
-      email: "lisa.anderson@email.com",
-      phone: "+1 (555) 789-0123",
-      linkedIn: "linkedin.com/in/lisaanderson",
-      summary:
-        "Multi-framework frontend developer. Experience across React, Vue, and Angular ecosystems.",
-      appliedDate: "5 days ago",
-      availability: "1 month",
-      expectedSalary: "$125k - $140k",
-      noticePeriod: "1 month",
-      rank: 5,
-    },
-    {
-      id: 6,
-      name: "James Thompson",
-      title: "Frontend Engineer",
-      location: "Remote",
-      experience: "3+ years",
-      yearsOfExperience: 3,
-      skills: ["React", "JavaScript", "CSS", "HTML", "Git"],
-      matchScore: 80,
-      attritionRisk: "Medium",
-      avatar: "JT",
-      status: "Reviewed",
-      salary: "$105k",
-      education: "BS Computer Science, State University",
-      lastActive: "6 hours ago",
-      responseRate: 85,
-      cultureFit: 88,
-      technicalSkills: 78,
-      softSkills: 90,
-      email: "james.t@email.com",
-      phone: "+1 (555) 678-9012",
-      github: "github.com/jthompson",
-      summary:
-        "Junior developer with good fundamentals and strong communication skills. Quick learner.",
-      appliedDate: "6 days ago",
-      availability: "2 weeks",
-      expectedSalary: "$105k - $115k",
-      noticePeriod: "2 weeks",
-      rank: 6,
-    },
-    {
-      id: 7,
-      name: "Alex Martinez",
-      title: "Frontend Developer",
-      location: "Los Angeles, CA",
-      experience: "4+ years",
-      yearsOfExperience: 4,
-      skills: ["React", "TypeScript", "Next.js", "Tailwind", "GraphQL"],
-      matchScore: 77,
-      attritionRisk: "Low",
-      avatar: "AM",
-      status: "New",
-      salary: "$110k",
-      education: "BS Computer Science, UCLA",
-      lastActive: "2 days ago",
-      responseRate: 80,
-      cultureFit: 80,
-      technicalSkills: 82,
-      softSkills: 75,
-      email: "alex.martinez@email.com",
-      phone: "+1 (555) 890-1234",
-      github: "github.com/amartinez",
-      portfolio: "alexmartinez.dev",
-      summary:
-        "Modern stack developer with focus on Next.js and TypeScript. Building production apps.",
-      appliedDate: "1 week ago",
-      availability: "3 weeks",
-      expectedSalary: "$110k - $120k",
-      noticePeriod: "2 weeks",
-      rank: 7,
-    },
-    {
-      id: 8,
-      name: "Rachel Foster",
-      title: "Software Developer",
-      location: "Seattle, WA",
-      experience: "2+ years",
-      yearsOfExperience: 2,
-      skills: ["React", "JavaScript", "HTML", "CSS", "Redux"],
-      matchScore: 72,
-      attritionRisk: "Medium",
-      avatar: "RF",
-      status: "Rejected",
-      salary: "$95k",
-      education: "BS Computer Science, University of Washington",
-      lastActive: "1 week ago",
-      responseRate: 70,
-      cultureFit: 78,
-      technicalSkills: 72,
-      softSkills: 85,
-      email: "rachel.foster@email.com",
-      phone: "+1 (555) 901-2345",
-      summary:
-        "Entry-level developer with 2 years experience. Looking to grow in frontend development.",
-      appliedDate: "1 week ago",
-      availability: "Immediate",
-      expectedSalary: "$95k - $105k",
-      noticePeriod: "Immediate",
-      rank: 8,
-      recruiterNotes:
-        "Not enough experience for senior role. Better fit for mid-level position.",
-    },
-  ]);
+        // Fetch applications joined with candidate info (select required candidate fields)
+        const { data, error } = await supabase
+          .from("applications")
+          .select(
+            /* explicit relationship -> use candidate_id relation */
+            `id, job_id, candidate_id, fitment_score, sub_scores, created_at, stage, recruiter_notes, interview_score,
+             candidates!applications_candidate_id_fkey(id, display_name, email, current_title, skills, experience, avatar_url, years_of_experience, technical_skills, soft_skills, culture_fit, response_rate, expected_salary, notice_period, education, summary, linkedin, github)`
+          )
+          .eq("job_id", id);
+
+        if (error) throw error;
+
+        const normalizeSkills = (s: any) => {
+          if (!s) return [];
+          if (Array.isArray(s)) return s.map(String);
+          if (typeof s === "string")
+            return s.split(",").map((t) => t.trim()).filter(Boolean);
+          if (typeof s === "object") {
+            // JSONB might be array or object with names
+            try {
+              return Array.isArray(s)
+                ? s.map(String)
+                : Object.values(s).map(String);
+            } catch {
+              return [];
+            }
+          }
+          return [];
+        };
+
+        const mapped = (data || []).map((r: any, index: number) => {
+          const c = r.candidates || {};
+          const skills = normalizeSkills(c.skills);
+          const matchScore =
+            typeof r.fitment_score === "number"
+              ? r.fitment_score
+              : Math.round((c.match_score as any) || 0);
+          return {
+            id: c.id ?? r.candidate_id ?? index,
+            name: c.display_name ?? c.name ?? "Unknown",
+            title: c.current_title ?? c.title ?? "",
+            location: c.location ?? "",
+            experience: c.experience ?? `${c.years_of_experience ?? ""} yrs`,
+            skills,
+            matchScore,
+            attritionRisk: c.attrition_risk ?? "Medium",
+            avatar:
+              c.avatar_url && c.display_name
+                ? undefined
+                : c.display_name
+                ? String(c.display_name).slice(0, 2).toUpperCase()
+                : "U",
+            status: (r.stage as any) || "New",
+            salary: c.expected_salary ?? r.salary ?? "",
+            education:
+              c.education && typeof c.education === "string"
+                ? c.education
+                : c.education?.degree ?? "",
+            lastActive: "",
+            responseRate: typeof c.response_rate === "number" ? c.response_rate : 80,
+            interviewScore: typeof r.interview_score === "number" ? r.interview_score : undefined,
+            yearsOfExperience: c.years_of_experience ?? undefined,
+            cultureFit: typeof c.culture_fit === "number" ? c.culture_fit : 75,
+            technicalSkills: typeof c.technical_skills === "number" ? c.technical_skills : 80,
+            softSkills: typeof c.soft_skills === "number" ? c.soft_skills : 80,
+            email: c.email,
+            phone: c.phone,
+            linkedIn: c.linkedin,
+            github: c.github,
+            // portfolio not selected from DB (column missing) — leave undefined if not present
+            summary: c.summary ?? "",
+            appliedDate: r.created_at ? new Date(r.created_at).toLocaleString() : "",
+            availability: c.availability ?? "",
+            expectedSalary: c.expected_salary ?? "",
+            noticePeriod: c.notice_period ?? "",
+            rank: index + 1,
+            recruiterNotes: r.recruiter_notes ?? "",
+          } as Candidate;
+        });
+
+        // Sort by matchScore desc
+        mapped.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+        setRows(data || []);
+        setCandidates(mapped);
+      } catch (err) {
+        console.error("failed to load applications/candidates", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [id]);
+
+  // Optional: call your backend to recompute rankings for this job.
+  // This requires a server endpoint (Flask or Node) that triggers scoring for all applications.
+  const onRecompute = async () => {
+    if (!id) return;
+    setRecomputing(true);
+    try {
+      const FLASK_BASE = (import.meta as any)?.env?.VITE_FLASK_BASE || 'http://127.0.0.1:5000';
+      // Expect server route: POST /rank with { job_id }
+      const res = await fetch(`${FLASK_BASE.replace(/\/$/, '')}/rank`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: id })
+      });
+      if (!res.ok) throw new Error(`rank request failed ${res.status}`);
+      const json = await res.json();
+      // server returns array of rankings; map into UI
+      if (Array.isArray(json)) {
+        // map server response to candidates (assumes server returns full candidate objects)
+        setCandidates(json);
+      } else {
+        // fallback: re-run the primary fetch by triggering the effect (simple approach: refetch by reassigning id)
+        // A proper approach is to extract fetch logic into a function and call it here.
+        const { data } = await supabase
+          .from('applications')
+          .select(
+            /* explicit relationship for fallback fetch as well */
+            `id, job_id, candidate_id, fitment_score, sub_scores, created_at, stage, recruiter_notes, interview_score,
+             candidates!applications_candidate_id_fkey(id, display_name, email, current_title, skills, experience, avatar_url, years_of_experience, technical_skills, soft_skills, culture_fit, response_rate, expected_salary, notice_period, education, summary, linkedin, github, portfolio)`
+          )
+          .eq('job_id', id);
+        // map similar to above (lightweight)
+        const mapped = (data || []).map((r: any, index: number) => {
+          const c = r.candidates || {};
+          return {
+            id: c.id ?? r.candidate_id ?? index,
+            name: c.display_name ?? "Unknown",
+            skills: Array.isArray(c.skills) ? c.skills.map(String) : (c.skills ? String(c.skills).split(',') : []),
+            matchScore: typeof r.fitment_score === 'number' ? r.fitment_score : 0,
+            status: r.stage ?? "New",
+            appliedDate: r.created_at ? new Date(r.created_at).toLocaleString() : "",
+          } as Candidate;
+        });
+        mapped.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+        setCandidates(mapped);
+      }
+    } catch (err) {
+      console.error('recompute failed', err);
+    } finally {
+      setRecomputing(false);
+    }
+  };
+
+  const color = (v: number | undefined) => (v === undefined ? "gray" : v >= 80 ? "green" : v >= 60 ? "amber" : "red");
+
+  if (loading) return <div className="p-4">Loading candidates…</div>;
 
   // Filter and sort candidates
   const filteredCandidates = candidates
     .filter((candidate) => {
       const matchesSearch =
         candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        candidate.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        candidate.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         candidate.skills.some((skill) =>
           skill.toLowerCase().includes(searchTerm.toLowerCase())
         );
@@ -497,9 +327,10 @@ export function RankingCandidates1() {
         case "matchScore":
           return b.matchScore - a.matchScore;
         case "appliedDate":
+          // Safely parse appliedDate strings and fallback to 0 when undefined/invalid
           return (
-            new Date(b.appliedDate).getTime() -
-            new Date(a.appliedDate).getTime()
+            (Date.parse(b.appliedDate || "") || 0) -
+            (Date.parse(a.appliedDate || "") || 0)
           );
         case "name":
           return a.name.localeCompare(b.name);
@@ -509,7 +340,7 @@ export function RankingCandidates1() {
     });
 
   const updateCandidateStatus = (
-    candidateId: number,
+    candidateId: string | number,
     newStatus: Candidate["status"]
   ) => {
     setCandidates((prev) =>
@@ -526,7 +357,7 @@ export function RankingCandidates1() {
     }
   };
 
-  const getAttritionRiskColor = (risk: string) => {
+  const getAttritionRiskColor = (risk?: string) => {
     switch (risk) {
       case "Low":
         return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300";
@@ -594,10 +425,10 @@ export function RankingCandidates1() {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>
-                <h1 className="text-xl">{job.title}</h1>
+                <h1 className="text-xl">{job?.title}</h1>
                 <p className="text-xs text-muted-foreground">
-                  {filteredCandidates.length} candidates • {job.department} •{" "}
-                  {job.location}
+                  {filteredCandidates.length} candidates • {job?.department} •{" "}
+                  {job?.location}
                 </p>
               </div>
             </div>
@@ -625,29 +456,29 @@ export function RankingCandidates1() {
                 <div className="flex items-center gap-3 mb-3">
                   <Badge
                     variant={
-                      job.urgency === "High" ? "destructive" : "secondary"
+                      job?.urgency === "High" ? "destructive" : "secondary"
                     }
                   >
-                    {job.urgency} Priority
+                    {job?.urgency} Priority
                   </Badge>
-                  <Badge variant="outline">{job.status}</Badge>
+                  <Badge variant="outline">{job?.status}</Badge>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="flex items-center text-sm">
                     <Briefcase className="w-4 h-4 mr-2 text-primary" />
                     <span className="text-muted-foreground">
-                      {job.department}
+                      {job?.department}
                     </span>
                   </div>
                   <div className="flex items-center text-sm">
                     <MapPin className="w-4 h-4 mr-2 text-primary" />
                     <span className="text-muted-foreground">
-                      {job.location}
+                      {job?.location}
                     </span>
                   </div>
                   <div className="flex items-center text-sm">
                     <DollarSign className="w-4 h-4 mr-2 text-primary" />
-                    <span className="text-muted-foreground">{job.salary}</span>
+                    <span className="text-muted-foreground">{job?.salary}</span>
                   </div>
                   <div className="flex items-center text-sm">
                     <Users className="w-4 h-4 mr-2 text-primary" />
