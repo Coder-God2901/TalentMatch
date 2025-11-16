@@ -161,8 +161,8 @@ export function RankingCandidates1() {
         const { data, error } = await supabase
           .from("applications")
           .select(
-            /* explicit relationship -> use candidate_id relation */
-            `id, job_id, candidate_id, fitment_score, sub_scores, created_at, stage, recruiter_notes, interview_score,
+            /* explicit relationship -> include separate score columns on applications */
+            `id, job_id, candidate_id, fitment_score, skill_match, cultural_fit, growth_potential, attrition_risk, created_at, stage, recruiter_notes, interview_score,
              candidates!applications_candidate_id_fkey(id, display_name, email, current_title, skills, experience, avatar_url, years_of_experience, technical_skills, soft_skills, culture_fit, response_rate, expected_salary, notice_period, education, summary, linkedin, github)`
           )
           .eq("job_id", id);
@@ -219,8 +219,9 @@ export function RankingCandidates1() {
             responseRate: typeof c.response_rate === "number" ? c.response_rate : 80,
             interviewScore: typeof r.interview_score === "number" ? r.interview_score : undefined,
             yearsOfExperience: c.years_of_experience ?? undefined,
-            cultureFit: typeof c.culture_fit === "number" ? c.culture_fit : 75,
-            technicalSkills: typeof c.technical_skills === "number" ? c.technical_skills : 80,
+            cultureFit: typeof r.cultural_fit === "number" ? Math.round(r.cultural_fit) : (typeof c.culture_fit === 'number' ? c.culture_fit : 75),
+            // prefer application-level breakdown fields when available
+            technicalSkills: typeof c.technical_skills === "number" ? c.technical_skills : (typeof r.skill_match === 'number' ? Math.round(r.skill_match) : 80),
             softSkills: typeof c.soft_skills === "number" ? c.soft_skills : 80,
             email: c.email,
             phone: c.phone,
@@ -234,6 +235,11 @@ export function RankingCandidates1() {
             noticePeriod: c.notice_period ?? "",
             rank: index + 1,
             recruiterNotes: r.recruiter_notes ?? "",
+            // expose per-application breakdown fields to UI if needed
+            _skillMatch: typeof r.skill_match === "number" ? r.skill_match : undefined,
+            _culturalFit: typeof r.cultural_fit === "number" ? r.cultural_fit : undefined,
+            _growthPotential: typeof r.growth_potential === "number" ? r.growth_potential : undefined,
+            _attritionRisk: typeof r.attrition_risk === "number" ? r.attrition_risk : undefined,
           } as Candidate;
         });
 

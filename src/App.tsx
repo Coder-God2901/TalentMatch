@@ -24,6 +24,7 @@ import RankedCandidates from "./pages/recruiter/RankedCandidates";
 import { RecruiterDashboard1 } from "./components/RecruiterDashboard1";
 import { CandidatesPage } from "./components/CandidatesPage";
 import { RankingCandidates1 } from "./components/RankingCandidates1";
+import { JobSeekerDashboard1 } from "./components/JobSeekerDashboard1";
 
 const activeJobs = [  
     {
@@ -194,7 +195,7 @@ export default function App() {
             path="/job-seeker-dashboard"
             element={
               <ProtectedRoute>
-                <JobSeekerDashboard />
+                <JobSeekerDashboard1 />
               </ProtectedRoute>
             }
           />

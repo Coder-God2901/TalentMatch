@@ -11,8 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-# Allow CORS from frontend (change to specific origin in production)
-CORS(app, resources={r"/*": {"origins": os.getenv("FLASK_ALLOW_ORIGINS", "*")}})
+CORS(app)  # allow browser access during dev
 
 # Ensure every response contains CORS headers and handle OPTIONS preflight
 CORS_ALLOWED_ORIGINS = os.getenv("FLASK_ALLOW_ORIGINS", "*")
@@ -54,6 +53,21 @@ def upload_resume():
 
     # Extract candidate info
     candidate_data = parse_resume(filepath)
+
+    # Log parsed resume for debugging (prints to Flask console)
+    try:
+        import json as _json
+        app.logger.info("Parsed resume data: %s", _json.dumps(candidate_data, ensure_ascii=False))
+        # Also log extracted plain text if present
+        text_preview = candidate_data.get("text") or candidate_data.get("raw_text") or candidate_data.get("resume_text")
+        if text_preview:
+            app.logger.info("Extracted resume text (first 1000 chars): %s", (text_preview[:1000] + "...") if len(text_preview) > 1000 else text_preview)
+    except Exception:
+        app.logger.exception("Failed to log candidate_data")
+
+    # Allow returning JSON for quick tests: POST /upload?json=1
+    if request.args.get("json") == "1":
+        return jsonify({"parsed": candidate_data}), 200
 
     # Create feature vector matching model input
     feature_vector = [
@@ -152,6 +166,24 @@ def score_and_upsert_application():
 
         final_score, breakdown = calculate_fitment_score(candidate_data_for_scoring, attrition_prob)
 
+        # robust extractors for breakdown keys (supports varied key naming)
+        def get_breakdown_val(b, *keys, default=0.0):
+            for k in keys:
+                if isinstance(b, dict) and k in b and b[k] is not None:
+                    try:
+                        return float(b[k])
+                    except Exception:
+                        try:
+                            return float(str(b[k]).strip('%')) / (1 if '%' not in str(b[k]) else 1)
+                        except Exception:
+                            return default
+            return default
+
+        bm_skill = get_breakdown_val(breakdown, "skill_match", "Skill Match", "skillMatch")
+        bm_culture = get_breakdown_val(breakdown, "cultural_fit", "Cultural Fit", "culture_fit")
+        bm_growth = get_breakdown_val(breakdown, "growth_potential", "Growth Potential", "growthPotential")
+        bm_attrition = get_breakdown_val(breakdown, "attrition_risk", "Attrition Risk", "attritionRisk")
+
         # Upsert into Supabase via REST (service role). Uses environment secrets.
         SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").rstrip("/")
         SERVICE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
@@ -182,7 +214,13 @@ def score_and_upsert_application():
             if existing_app and existing_app.get("id"):
                 app_id = existing_app["id"]
                 patch_url = f"{SUPABASE_URL}/rest/v1/applications?id=eq.{app_id}"
-                patch_body = {"fitment_score": float(final_score), "sub_scores": breakdown}
+                patch_body = {
+                    "fitment_score": float(final_score),
+                    "skill_match": bm_skill,
+                    "cultural_fit": bm_culture,
+                    "growth_potential": bm_growth,
+                    "attrition_risk": bm_attrition
+                }
                 patch_headers = {**base_headers, "Prefer": "return=representation"}
                 patch_resp = requests.patch(patch_url, headers=patch_headers, json=patch_body, timeout=15)
                 if patch_resp.status_code in (200, 204):
@@ -196,7 +234,10 @@ def score_and_upsert_application():
                     "candidate_id": candidate_id,
                     "status": "applied",
                     "fitment_score": float(final_score),
-                    "sub_scores": breakdown
+                    "skill_match": bm_skill,
+                    "cultural_fit": bm_culture,
+                    "growth_potential": bm_growth,
+                    "attrition_risk": bm_attrition
                 }
                 post_headers = {**base_headers, "Prefer": "return=representation"}
                 post_resp = requests.post(post_url, headers=post_headers, json=insert_body, timeout=15)
